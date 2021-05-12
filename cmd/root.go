@@ -61,8 +61,6 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.cobra.yaml)")
 
-
-
 }
 
 // initConfig reads in config file and ENV variables if set.
