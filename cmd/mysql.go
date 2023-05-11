@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -30,6 +30,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/spf13/cobra"
 )
+
 var username string
 var prefix string
 var password string
@@ -37,6 +38,7 @@ var tableName string
 var host string
 var port string
 var dataBase string
+var iSGorm bool
 var dbr int8
 
 // mysqlCmd represents the mysql command
@@ -78,12 +80,13 @@ func init() {
 	mysqlCmd.PersistentFlags().StringVarP(&host, "host", "H", "", "数据库地址")
 	mysqlCmd.PersistentFlags().StringVarP(&port, "port", "P", "3306", "数据库端口")
 	mysqlCmd.PersistentFlags().StringVarP(&dataBase, "dataBase", "d", "", "数据库名")
-	mysqlCmd.PersistentFlags().Int8VarP(&dbr,"dbr","D",0,"是否使用dbr(default 0),0:不使用,1:使用")
+	mysqlCmd.PersistentFlags().BoolVarP(&iSGorm, "gorm", "G", true, "是否使用了gorm，默认是true")
+	mysqlCmd.PersistentFlags().Int8VarP(&dbr, "dbr", "D", 0, "是否使用dbr(default 0),0:不使用,1:使用")
 
 }
 
-func (d *DBModel)ConnectMysql()error  {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/information_schema",d.DBInfo.UserName,d.DBInfo.Password,d.DBInfo.Host,d.DBInfo.Port)
+func (d *DBModel) ConnectMysql() error {
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/information_schema", d.DBInfo.UserName, d.DBInfo.Password, d.DBInfo.Host, d.DBInfo.Port)
 
 	timeout, cancelFunc := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancelFunc()
@@ -98,130 +101,136 @@ func (d *DBModel)ConnectMysql()error  {
 	return nil
 }
 
-func (d *DBModel)GetColumns(dbName,tableName string)([]TableInfo,error)  {
+func (d *DBModel) GetColumns(dbName, tableName string) ([]TableInfo, error) {
 	var columns []TableInfo
 	err := d.DB.Select(&columns, "select COLUMN_NAME,IS_NULLABLE,DATA_TYPE,COLUMN_COMMENT from COLUMNS where TABLE_SCHEMA=? and TABLE_NAME=? order by ORDINAL_POSITION asc ", dbName, tableName)
 
-	for i,column := range columns{
-		columns[i].ColumnComment = strings.Replace(column.ColumnComment,"\n"," ",-1)
-		if dbr==1 && column.IsNullable==StringBoolYes{
+	for i, column := range columns {
+		columns[i].ColumnComment = strings.Replace(column.ColumnComment, "\n", " ", -1)
+		if dbr == 1 && column.IsNullable == StringBoolYes {
 			columns[i].StructType = DBTypeToStructTypeDbrInfo[column.DataType]
-		}else {
+		} else {
 			columns[i].StructType = DBTypeToStructTypeInfo[column.DataType]
 		}
 
 	}
 
-	if !strings.HasPrefix(tableName,prefix){
+	if !strings.HasPrefix(tableName, prefix) {
 		prefix = ""
 	}
 	tpl := StructTpl{
 		TableName: tableName,
 		TagAround: "`",
+		IsGorm:    iSGorm,
 		Columns:   columns,
-		Class: strings.Replace(tableName,prefix,"",1),
+		Class:     strings.Replace(tableName, prefix, "", 1),
 	}
 	tpl.Parse()
 
-
-	return columns,err
+	return columns, err
 }
 
 var DBTypeToStructTypeInfo = map[string]string{
-	"int":"int64",
-	"tinyint":"int8",
-	"smallint":"int16",
-	"bigint":"int64",
-	"varchar":"string",
-	"text":"string",
-	"mediumtext":"string",
-	"json":"string",
-	"longtext":"string",
-	"char":"string",
-	"timestamp":"time.Time",
-	"datetime":"time.Time",
-	"date":"time.Time",
-	"time":"time.Time",
-	"double":"float64",
-	"decimal":"float64",
-	"float":"float64",
+	"int":        "int64",
+	"tinyint":    "int8",
+	"smallint":   "int16",
+	"bigint":     "int64",
+	"varchar":    "string",
+	"text":       "string",
+	"mediumtext": "string",
+	"json":       "string",
+	"longtext":   "string",
+	"char":       "string",
+	"timestamp":  "time.Time",
+	"datetime":   "time.Time",
+	"date":       "time.Time",
+	"time":       "time.Time",
+	"double":     "float64",
+	"decimal":    "float64",
+	"float":      "float64",
 }
 var DBTypeToStructTypeDbrInfo = map[string]string{
-	"int":"dbr.NullInt64",
-	"tinyint":"dbr.NullInt64",
-	"smallint":"dbr.NullInt64",
-	"bigint":"dbr.NullInt64",
-	"varchar":"dbr.NullString",
-	"text":"dbr.NullString",
-	"mediumtext":"dbr.NullString",
-	"json":"dbr.NullString",
-	"longtext":"dbr.NullString",
-	"char":"dbr.NullString",
-	"timestamp":"dbr.NullTime",
-	"datetime":"dbr.NullTime",
-	"date":"dbr.NullTime",
-	"time":"dbr.NullTime",
-	"double":"dbr.NullFloat64",
-	"decimal":"dbr.NullFloat64",
-	"float":"dbr.NullFloat64",
+	"int":        "dbr.NullInt64",
+	"tinyint":    "dbr.NullInt64",
+	"smallint":   "dbr.NullInt64",
+	"bigint":     "dbr.NullInt64",
+	"varchar":    "dbr.NullString",
+	"text":       "dbr.NullString",
+	"mediumtext": "dbr.NullString",
+	"json":       "dbr.NullString",
+	"longtext":   "dbr.NullString",
+	"char":       "dbr.NullString",
+	"timestamp":  "dbr.NullTime",
+	"datetime":   "dbr.NullTime",
+	"date":       "dbr.NullTime",
+	"time":       "dbr.NullTime",
+	"double":     "dbr.NullFloat64",
+	"decimal":    "dbr.NullFloat64",
+	"float":      "dbr.NullFloat64",
 }
 
 type DBModel struct {
-	DB *sqlx.DB
+	DB     *sqlx.DB
 	DBInfo DBInfo
-
 }
 type DBInfo struct {
-	Host string
+	Host     string
 	UserName string
 	Password string
 	DataBase string
-	Port string
+	Port     string
 }
 type StringBool string
 
 const (
 	StringBoolYes StringBool = "YES"
-	StringBoolNO StringBool = "NO"
+	StringBoolNO  StringBool = "NO"
 )
+
 type TableInfo struct {
-	ColumnName string `db:"COLUMN_NAME" json:"column_name"`
-	IsNullable StringBool `db:"IS_NULLABLE" json:"is_nullable"`
-	DataType string `db:"DATA_TYPE" json:"data_type"`
-	ColumnComment string `db:"COLUMN_COMMENT" json:"column_comment"`
-	StructType string `db:"-" json:"-"`
-	TagAround string `db:"-" json:"-"`
+	ColumnName    string     `db:"COLUMN_NAME" json:"column_name"`
+	IsNullable    StringBool `db:"IS_NULLABLE" json:"is_nullable"`
+	DataType      string     `db:"DATA_TYPE" json:"data_type"`
+	ColumnComment string     `db:"COLUMN_COMMENT" json:"column_comment"`
+	StructType    string     `db:"-" json:"-"`
+	TagAround     string     `db:"-" json:"-"`
 }
 type StructTpl struct {
 	TableName string
 	TagAround string
-	Class string
-	Columns []TableInfo
+	IsGorm    bool
+	Class     string
+	Columns   []TableInfo
 }
 
-const tplText =`
+const tplText = `
 package model
-// {{.Class | ToCamelCase}} ...
+// {{.Class | ToCamelCase}}Table 表名
 const {{.Class | ToCamelCase}}Table = "{{.TableName}}"
 // {{.Class | ToCamelCase}} ...
 type {{.Class | ToCamelCase}} struct {
 {{- $tag := .TagAround}}
+{{- $iSGorm := .IsGorm}}
 {{- range .Columns}}
-	{{.ColumnName | ToCamelCase}}	{{.StructType}}		{{$tag}}db:"{{.ColumnName}}"{{$tag}} //{{.ColumnComment}}
+	{{- if $iSGorm}}
+		{{.ColumnName | ToCamelCase}}	{{.StructType}}		{{$tag}}gorm:"column:{{.ColumnName}}"{{$tag}} //{{.ColumnComment}}
+	{{- else }}
+		{{.ColumnName | ToCamelCase}}	{{.StructType}}		{{$tag}}db:"{{.ColumnName}}"{{$tag}} //{{.ColumnComment}}
+	{{- end}}
 {{- end}}
 }`
 
-func (s *StructTpl)Parse()  {
+func (s *StructTpl) Parse() {
 	tpl := template.Must(template.New("table2struct").Funcs(template.FuncMap{
 		"ToCamelCase": ToCamel,
 	}).Parse(string(tplText)))
 	dir, _ := filepath.Abs("./model")
 	info, err := os.Stat(dir)
 	if err != nil || !info.IsDir() {
-		os.Mkdir(dir,0755)
+		os.Mkdir(dir, 0755)
 	}
 	fileName := filepath.Join(dir, s.Class+".go")
-	file,err := os.OpenFile(fileName,os.O_CREATE|os.O_RDWR,0755)
+	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_RDWR, 0755)
 	if err != nil {
 		panic(err)
 	}
@@ -229,21 +238,21 @@ func (s *StructTpl)Parse()  {
 	if err != nil {
 		panic(err)
 	}
-	time.Sleep(time.Millisecond*500)
+	time.Sleep(time.Millisecond * 500)
 	file.Close()
-	time.Sleep(time.Millisecond*500)
+	time.Sleep(time.Millisecond * 500)
 
-	exec.Command("go","fmt",fileName).Run()
+	exec.Command("go", "fmt", fileName).Run()
 
 }
 
 func ToCamel(s string) string {
-	if s == "id"{
+	if s == "id" {
 		return "ID"
 	}
-	if strings.HasSuffix(s,"id"){
-		s = strings.Replace(s,"id","ID",1)
+	if strings.HasSuffix(s, "id") {
+		s = strings.Replace(s, "id", "ID", 1)
 	}
 
-	return strcase.ToCamel( s)
+	return strcase.ToCamel(s)
 }
