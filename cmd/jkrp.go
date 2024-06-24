@@ -127,7 +127,7 @@ func findHtmlFileBaseDir(filePath string) {
 			fmt.Println(filePath)
 		} else {
 
-			ioutil.WriteFile(filePath, []byte(s), 777)
+			ioutil.WriteFile(filePath, []byte(s), 0777)
 		}
 		//
 
@@ -151,7 +151,7 @@ func findHtmlAudio(filePath string) {
 		contentRe, _ := regexp.Compile(`<audio.+</audio>`)
 		if b, err := ioutil.ReadFile(filePath); err == nil {
 			s := contentRe.ReplaceAllString(string(b), audi)
-			ioutil.WriteFile(filePath+"t", []byte(s), 777)
+			ioutil.WriteFile(filePath+"t", []byte(s), 0777)
 		}
 	}
 
