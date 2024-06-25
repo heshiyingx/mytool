@@ -1,4 +1,4 @@
-module mytool
+module github.com/heshiyingx/mytool
 
 go 1.14
 
